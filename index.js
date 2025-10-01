@@ -3,7 +3,7 @@ const { chromium } = require("playwright");
 async function sortHackerNewsArticles() {
   // launch browser
   const browser = await chromium.launch({ headless: false });
-  let totalArticles = 0;
+  let articles = [];
 
   try {
     const context = await browser.newContext();
@@ -12,42 +12,36 @@ async function sortHackerNewsArticles() {
     // go to Hacker News
     await page.goto("https://news.ycombinator.com/newest");
 
-    // Each article is represented by a <tr> element with the class "athing"
-    const rows = await page.locator("tr.athing");
-    const count = await rows.count();
+    while (articles.length < 100) {
+      const rows = await page.locator("tr.athing");
 
-    // Now we want to go to the next page and count the articles there as well
-    // The "More" link at the bottom of the page has the class "morelink"
-    const nextButton = page.locator('a.morelink');
-    await nextButton.click();
+      // Get article attributes and push to articles array
+      const pageArticles = await rows.evaluateAll((attributes) => {
+        return attributes.map((row) => {
+          const id = row.getAttribute("id");
+          const age = row.nextElementSibling?.querySelector("span.age");
+          const timestamp = age?.getAttribute("title"); // ISO timestamp
+          const title = row.querySelector("span.titleline")?.textContent?.trim();
+          return { id, title, timestamp };
+        })
+      });
 
-    console.log(`Number of articles: ${count}`);
-    
-    // Wait for the new page to load and count articles again
-    await page.waitForLoadState('networkidle');
-    const newRows = await page.locator("tr.athing");
-    const newCount = await newRows.count();
-    console.log(`Number of articles on the 2nd page: ${newCount}`);
+      // Iterate through pageArticles and add to articles array until we have 100 articles
+      for (const article of pageArticles) {
+        if (articles.length === 100) break;
+        if (article.timestamp) articles.push(article);
+      }
 
-    // This is a brute force way of getting all articles from all pages, but
-    // we need to continue until we have 100 articles.
-    await nextButton.click();
-    await page.waitForLoadState('networkidle');
-    const thirdRows = await page.locator("tr.athing");
-    const thirdCount = await thirdRows.count();
-    console.log(`Number of articles on the 3rd page: ${thirdCount}`); 
+      // If we have 100 articles, break the while loop
+      if (articles.length >= 100) break;
 
-    // Now finally the fourth page in order to get at least 100 articles
-    await nextButton.click();
-    await page.waitForLoadState('networkidle');
-    const fourthRows = await page.locator("tr.athing");
-    const fourthCount = await fourthRows.count();
-    console.log(`Number of articles on the 4th page: ${fourthCount}`);
-
-    totalArticles = count + newCount + thirdCount + fourthCount;
-    console.log(`Total articles across 4 pages: ${totalArticles}`);
+      // Click "More" to load more articles
+      await page.locator("a.morelink").click();
+      await page.waitForLoadState("networkidle");
+    }
 
   } finally {
+    console.log(articles);
     await browser.close();
   }
 }
