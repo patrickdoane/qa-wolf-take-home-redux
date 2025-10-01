@@ -40,6 +40,11 @@ async function sortHackerNewsArticles() {
       await page.waitForLoadState("networkidle");
     }
 
+    // Validate we have exactly 100 articles
+    if (articles.length !== 100) {
+      throw new Error(`Expected 100 articles, got ${articles.length} articles instead.`);
+    }
+
   } finally {
     console.log(articles);
     await browser.close();
