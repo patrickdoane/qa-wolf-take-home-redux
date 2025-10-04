@@ -32,11 +32,12 @@ function mockNewestPage(
     return `
         <html>
             <body>
-                <table class="itemlist"
+                <table class="itemlist">
                     <tbody>
                         ${rows}
                     </tbody>
                 </table>
+                ${moreLink}
             </body>
         </html>
     `;
